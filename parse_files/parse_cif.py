@@ -71,6 +71,73 @@ coef_pattern = re.compile(r"([+-]?)\s*([xyz])", re.IGNORECASE)
 # Matches: optional sign, optional space, number (integer, decimal, or fraction)
 # Example: "+1/2", "-0.5", "1/4", "+1"
 translation_pattern = re.compile(r"([+-]?)\s*(\d+(?:[./]\d+)?)")
+
+# The Master Regex
+# Group 1,2: Variable (sign, char)
+# Group 3,4: Number (sign, val)
+term_pattern = re.compile(r"([+-]?)\s*([xyz])|([+-]?)\s*(\d+(?:[./]\d+)?)", re.IGNORECASE)
+
+def parse_single_expression(expression_str):
+    """
+    Parses a string like '-x+1/2' or 'x-y' into numerical coefficients.
+    :param expression_str:
+    :return: (coeff_x, coeff_y, coeff_z, translation)
+    """
+    # Initialize values
+    c_x = 0.0
+    c_y = 0.0
+    c_z = 0.0
+    trans = 0.0
+    # Find all matches in the string
+    for match in term_pattern.finditer(expression_str):
+        # --- CASE 1: It's a Variable: x, y, z ---
+        if match.group(2):
+            sign_str = match.group(1)
+            variable = match.group(2).lower()
+            # Determine value: +1 or -1
+            value = -1.0 if sign_str == '-' else 1.0
+            if variable == 'x':
+                c_x += value
+            elif variable == 'y':
+                c_y += value
+            elif variable == 'z':
+                c_z += value
+        # --- CASE 2: It's a Number: Translation ---
+        elif match.group(4):
+            sign_str = match.group(3)
+            number_str = match.group(4)
+            # Handle fraction conversion (e.g., "1/2" -> 0.5)
+            if '/' in number_str:
+                num, den = number_str.split('/')
+                val = float(num) / float(den)
+            else:
+                val = float(number_str)
+            # Apply sign
+            if sign_str == '-':
+                val = -val
+            trans += val
+
+    return c_x, c_y, c_z, trans
+
+
+
+# # --- TEST EXAMPLES ---
+# examples = [
+#     "-x+1/2",       # Standard
+#     "1/2-x",        # Non-standard (Translation first)
+#     "0.5+y",        # Non-standard (Decimal + Variable)
+#     "z",            # Simple
+#     "-y-x+1/4"      # Complex
+# ]
+#
+# print(f"{'Expression':<15} | {'x':<4} {'y':<4} {'z':<4} {'Trans':<5}",file=sys.stdout)
+# print("-" * 45,file=sys.stdout)
+#
+# for ex in examples:
+#     cx, cy, cz, tr = parse_single_expression(ex)
+#     print(f"{ex:<15} | {cx:<4} {cy:<4} {cz:<4} {tr:<5}",file=sys.stdout)
+
+
 #main parsing function
 def parse_cif_contents(file):
 
@@ -82,4 +149,4 @@ def parse_cif_contents(file):
 
 
 
-print(parse_cif_contents(cif_file_name),file=sys.stdout)
+# print(parse_cif_contents(cif_file_name),file=sys.stdout)
