@@ -1,10 +1,12 @@
 import re
 import sys
-import json
 import os
 import pickle
 import numpy as np
 from pathlib import Path
+import copy
+
+
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 from name_conventions import symmetry_matrices_file_name
@@ -13,6 +15,7 @@ from name_conventions import symmetry_matrices_file_name
 
 paramErrCode = 3         # Wrong command-line parameters
 fileNotExistErrCode = 4  # Configuration file doesn't exist
+tol=1e-3
 if len(sys.argv) != 2:
     print("wrong number of arguments.", file=sys.stderr)
     print("usage: python parse_cif.py /path/to/xxx.cif", file=sys.stderr)
@@ -382,22 +385,6 @@ def parse_atom_sites(file):
     return atoms
 
 
-def remove_comments_and_empty_lines_cif(file_path):
-    """
-    Helper function to read a file and strip comments (#) and empty lines.
-    """
-    clean_lines = []
-    try:
-        with open(file_path, 'r') as f:
-            for line in f:
-                # Remove comments (everything after #)
-                line = line.split('#')[0].strip()
-                if line:
-                    clean_lines.append(line)
-    except FileNotFoundError:
-        print(f"Error: File {file_path} not found.")
-        sys.exit(1)
-    return clean_lines
 
 
 def parse_symmetry_metadata(file_path):
@@ -535,9 +522,194 @@ def generate_all_symmetry_transformation_matrices(cif_file_path):
     return out_pickle_file_name
 
 
+def generate_unit_cell_basis(cell_params,tol):
+    """
+    Generates basis vectors from cell parameters with defensive validation.
+    Args:
+        cell_params: Dictionary containing 'a', 'b', 'c' (Angstroms)
+                     and 'alpha', 'beta', 'gamma' (Degrees).
+
+    Returns:  basis_mat: 3x3 np.array where each row is a basis vector.
+    Raises:
+        KeyError: If keys are missing.
+        ValueError: If lengths are <= 0, angles are out of bounds,
+                    or angles form an impossible geometry (zero/negative volume).
+    """
+    # 1. Validate Keys exist
+    required_keys = {'a', 'b', 'c', 'alpha', 'beta', 'gamma'}
+    if not required_keys.issubset(cell_params):
+        missing = required_keys - set(cell_params.keys())
+        raise KeyError(f"Missing required cell parameters: {missing}")
+    a = cell_params["a"]
+    b = cell_params["b"]
+    c = cell_params["c"]
+    alpha_deg = cell_params["alpha"]
+    beta_deg = cell_params["beta"]
+    gamma_deg = cell_params["gamma"]
+    # 2. Validate Lengths (Must be strictly positive)
+
+    if a <= 0 or b <= 0 or c <= 0:
+        raise ValueError(f"Lattice parameters a, b, c must be positive. Got: a={a}, b={b}, c={c}")
+    # 3. Validate Angles (Must be strictly between 0 and 180 for a valid cell)
+    # sin(0) or sin(180) would cause division by zero later
+    if not (0 < alpha_deg < 180):
+        raise ValueError(f"Alpha must be between 0 and 180 degrees. Got: {alpha_deg}")
+    if not (0 < beta_deg < 180):
+        raise ValueError(f"Beta must be between 0 and 180 degrees. Got: {beta_deg}")
+    if not (0 < gamma_deg < 180):
+        raise ValueError(f"Gamma must be between 0 and 180 degrees. Got: {gamma_deg}")
+
+    # Convert degrees to radians
+    alpha_rad = np.radians(alpha_deg)
+    beta_rad = np.radians(beta_deg)
+    gamma_rad = np.radians(gamma_deg)
+    # v0 vector (aligned with x-axis)
+    v0_row_vec = np.array([a, 0, 0])
+    # v1 vector (in xy-plane)
+    v1_row_vec = np.array([b * np.cos(gamma_rad), b * np.sin(gamma_rad), 0])
+    # v2 vector calculation
+    v2_0 = c * np.cos(beta_rad)
+    # frac corresponds to (cos(alpha) - cos(beta)cos(gamma)) / sin(gamma)
+    # We already validated gamma != 0 or 180, so sin(gamma) is safe.
+    frac = (np.cos(alpha_rad) - np.cos(beta_rad) * np.cos(gamma_rad)) / np.sin(gamma_rad)
+    v2_1 = c * frac
+    # 4. Validate Geometric Consistency (Volume Check)
+    # The term under the square root determines the height of the cell (z-component).
+    # If this term is negative, the angles provided cannot form a closed 3D object.
+    term_under_sqrt = np.sin(beta_rad) ** 2 - frac ** 2
+    # We use a small epsilon for float comparison to avoid errors on valid but edge-case cells
+    epsilon = 1e-9
+    if term_under_sqrt < epsilon:
+        # If it's negative, the geometry is impossible.
+        # If it's effectively zero, the cell is flat (2D), which is invalid for a 3D basis generator.
+        raise ValueError(
+            f"Invalid angular configuration: alpha={alpha_deg}, beta={beta_deg}, gamma={gamma_deg}. "
+            "These angles do not form a valid 3D unit cell (volume is zero or complex)."
+        )
+    v2_2 = c * np.sqrt(term_under_sqrt)
+
+    v2_row_vec = np.array([v2_0, v2_1, v2_2])
+    basis_mat = np.array([v0_row_vec, v1_row_vec, v2_row_vec])
+    # --- APPLY TOLERANCE CHECK ---
+    # If absolute value of any component is less than tol, set it to 0.0
+    basis_mat[np.abs(basis_mat) < tol] = 0.0
+    return basis_mat
 
 
 
+
+def rename_labels(atoms_list):
+    """
+    Renames atom labels based on their element symbol.
+    Atoms are grouped by symbol, then numbered sequentially starting from 0.
+    This function creates a DEEP COPY of the input list, so the original
+    data remains unmodified.
+    Args:
+        atoms_list: The list of dictionaries returned by parse_atom_sites.
+
+    Returns:
+        A NEW list of dictionaries with updated 'label' keys.
+
+    """
+    # Create a deep copy so we don't mutate the original list
+    atoms_copy = copy.deepcopy(atoms_list)
+    # Dictionary to track the count for each element group
+    # Structure will look like: {'O': 2, 'V': 1, 'Te': 1}
+    symbol_counts = {}
+    for atom in atoms_copy:
+        # 1. Get the symbol to identify the group (e.g., 'O', 'V')
+        sym = atom["symbol"]
+        # 2. If this is the first time we see this symbol, initialize count to 0
+        if sym not in symbol_counts:
+            symbol_counts[sym] = 0
+        # 3. Generate the new label using the current count
+        # Example: "O" + "0" -> "O0"
+        new_label = f"{sym}{symbol_counts[sym]}"
+        # 4. Update the atom dictionary in the COPY
+        # We preserve the old label in 'original_label' for debugging
+        atom["original_label"] = atom["label"]
+        atom["label"] = new_label
+        # 5. Increment the counter for this specific group
+        symbol_counts[sym] += 1
+
+    return atoms_copy
+
+
+def subroutine_generate_conf_file(cif_file_name,tol):
+    metadata=parse_symmetry_metadata(cif_file_name)
+    data_name=metadata["data_name"]
+    space_group_name_H_M = metadata["space_group_name_H_M"]
+    int_tables_number = metadata["int_tables_number"]
+    cell_setting = metadata["cell_setting"]
+    atoms_list=parse_atom_sites(cif_file_name)
+    Wyckoff_position_num=len(atoms_list)
+    cell_params=parse_cell_parameters(cif_file_name)
+    basis_mat=generate_unit_cell_basis(cell_params,tol)
+    v0,v1,v2=basis_mat
+    basis_str=f"{v0[0]}, {v0[1]}, {v0[2]}; {v1[0]}, {v1[1]}, {v1[2]}; {v2[0]}, {v2[1]}, {v2[2]}\n"
+    text_list=[
+        f"#This is the configuration file for {data_name} computations\n",
+        "#the format is key=value\n",
+        "#matches: key=value\n",
+        "# my-key = value\n",
+        "# my.key= value with spaces\n",
+        "#KEY_NAME =   value123\n",
+        "# complex-key.name = some value here\n",
+        "#does not match:\n",
+        "# = value              # No key\n",
+        "# key =                # No value, this must be filled\n"
+        "# key value            # No equals sign\n"
+        "# my key = value       # Space in key (not allowed)\n",
+        "# key==value          # Multiple equals (first = becomes part of key)\n",
+        "\n",
+        "#name of the system\n",
+        f"name={data_name}\n",
+        "\n",
+        "#dimension of system\n",
+        "dim=\n",
+        "\n",
+        "#directions to study, available solutions: x,y,z\n",
+        "directions_to_study=\n",
+        "\n",
+        "#whether spin is considered\n",
+        "spin=False\n",
+        "\n",
+        "truncation_radius=\n",
+        "\n",
+        f"lattice_basis={basis_str}\n",
+        "\n",
+        f"space_group={int_tables_number}\n",
+        "\n",
+        f"space_group_name_H_M={space_group_name_H_M}\n",
+        "\n",
+        f"cell_setting={cell_setting}\n",
+        "\n",
+        f"Wyckoff_position_num={Wyckoff_position_num}\n",
+        "\n",
+    ]
+    for dict_item in atoms_list:
+        label=dict_item["label"]
+        x=dict_item["x"]
+        y = dict_item["y"]
+        z = dict_item["z"]
+        str0=f"#Wyckoff position label {label}, input orbitals\n"
+        str1=f"{label}_orbitals=\n"
+        str2=f"#one position of {label}, coefficients  (fractional coordinates)\n"
+        str3=f"{label}_position_coefs={x}, {y}, {z}\n"
+        str_list=[ "\n",str0,str1,str2,str3]
+        text_list.extend(str_list)
+
+    out_dir=Path(cif_file_name).resolve().parent
+    out_conf_file=str(out_dir/f"{data_name}.conf")
+    with open(out_conf_file, 'w', encoding='utf-8') as f:
+        f.writelines(text_list)
+        print(f"Successfully generated configuration file: {out_conf_file}")
+
+
+subroutine_generate_conf_file(cif_file_name,tol)
+
+atoms_list=parse_atom_sites(cif_file_name)
 # metadata=parse_symmetry_metadata(cif_file_name)
-print(generate_all_symmetry_transformation_matrices(cif_file_name),file=sys.stdout)
+atoms_copy=rename_labels(atoms_list)
+print(atoms_copy,file=sys.stdout)
 
