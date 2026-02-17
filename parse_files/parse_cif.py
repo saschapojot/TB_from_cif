@@ -499,7 +499,7 @@ def parse_transformation_one_row_to_matrix(a_row_of_transformation_list):
         mat[row,:]=ret_vec
     return mat
 
-def generate_all_symmetry_transformation_matrices(cif_file_path):
+def subroutine_generate_all_symmetry_transformation_matrices(cif_file_path):
     """
     this function write the symmetry transformation matrices to pkl file
     Args:
@@ -642,6 +642,7 @@ def subroutine_generate_conf_file(cif_file_name,tol):
     int_tables_number = metadata["int_tables_number"]
     cell_setting = metadata["cell_setting"]
     atoms_list=parse_atom_sites(cif_file_name)
+    atoms_list_renamed=rename_labels(atoms_list)
     Wyckoff_position_num=len(atoms_list)
     cell_params=parse_cell_parameters(cif_file_name)
     basis_mat=generate_unit_cell_basis(cell_params,tol)
@@ -668,7 +669,7 @@ def subroutine_generate_conf_file(cif_file_name,tol):
         "#dimension of system\n",
         "dim=\n",
         "\n",
-        "#directions to study, available solutions: x,y,z\n",
+        "#directions to study, available directions x,y,z\n",
         "directions_to_study=\n",
         "\n",
         "#whether spin is considered\n",
@@ -680,6 +681,8 @@ def subroutine_generate_conf_file(cif_file_name,tol):
         "\n",
         f"space_group={int_tables_number}\n",
         "\n",
+        f"space_group_origin=0,0,0\n"
+        "\n",
         f"space_group_name_H_M={space_group_name_H_M}\n",
         "\n",
         f"cell_setting={cell_setting}\n",
@@ -687,7 +690,7 @@ def subroutine_generate_conf_file(cif_file_name,tol):
         f"Wyckoff_position_num={Wyckoff_position_num}\n",
         "\n",
     ]
-    for dict_item in atoms_list:
+    for dict_item in atoms_list_renamed:
         label=dict_item["label"]
         x=dict_item["x"]
         y = dict_item["y"]
@@ -706,10 +709,8 @@ def subroutine_generate_conf_file(cif_file_name,tol):
         print(f"Successfully generated configuration file: {out_conf_file}")
 
 
-subroutine_generate_conf_file(cif_file_name,tol)
 
-atoms_list=parse_atom_sites(cif_file_name)
-# metadata=parse_symmetry_metadata(cif_file_name)
-atoms_copy=rename_labels(atoms_list)
-print(atoms_copy,file=sys.stdout)
+
+subroutine_generate_conf_file(cif_file_name,tol)
+subroutine_generate_all_symmetry_transformation_matrices(cif_file_name)
 
