@@ -41,10 +41,13 @@ key_value_pattern = r'^([^=\s]+)\s*=\s*([^=]+)\s*$'
 # Pattern for floating point numbers (including scientific notation)
 float_pattern = r"[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?"
 
-# Pattern for atom type definitions: AtomSymbol = orbital1, orbital2, ...
-# Example: O=2px,2py,2pz
+# Pattern for atom type definitions: AtomSymbol_orbitals = orbital1, orbital2, ...
+# Example: O0_orbitals=2px,2py,2pz
 # Modified to remove the count and semicolon requirement
-atom_orbital_pattern = r'^([A-Za-z]+\d*)\s*=\s*([1-7](?:s|px|py|pz|dxy|dxz|dyz|dx2-y2|dz2|fxyz|fx3-3xy2|f3yx2-y3|fxz2|fyz2|fzx2-zy2|fz3)(?:\s*,\s*[1-7](?:s|px|py|pz|dxy|dxz|dyz|dx2-y2|dz2|fxyz|fx3-3xy2|f3yx2-y3|fxz2|fyz2|fzx2-zy2|fz3))*)\s*$'
+atom_orbital_pattern = r'^([A-Za-z]+\d+)_orbitals\s*=\s*([1-7](?:s|px|py|pz|dxy|dxz|dyz|dx2-y2|dz2|fxyz|fx3-3xy2|f3yx2-y3|fxz2|fyz2|fzx2-zy2|fz3)(?:\s*,\s*[1-7](?:s|px|py|pz|dxy|dxz|dyz|dx2-y2|dz2|fxyz|fx3-3xy2|f3yx2-y3|fxz2|fyz2|fzx2-zy2|fz3))*)\s*$'
+# Pattern for atom position coefficients: AtomSymbol_position_coefs = x, y, z
+# Example: B0_position_coefs=0.33333, 0.66667, 0.0
+atom_position_pattern = rf'^([A-Za-z]+\d*)_position_coefs\s*=\s*({float_pattern})\s*,\s*({float_pattern})\s*,\s*({float_pattern})\s*$'
 
 
 # Pattern for system name
@@ -60,7 +63,7 @@ directions_to_study_pattern = r"^directions_to_study\s*=\s*(?!.*([xyz]).*\1)([xy
 truncation_radius_pattern=rf"truncation_radius\s*=\s*({float_pattern})\s*"
 
 # Pattern for number of Wyckoff position types
-Wyckoff_type_num_pattern = r"^Wyckoff_type_num\s*=\s*(\d+)\s*$"
+Wyckoff_position_num_pattern = r"^Wyckoff_position_num\s*=\s*(\d+)\s*$"
 
 # Pattern for lattice basis vectors: v1 ; v2 ; v3
 # Example: lattice_basis = 1.0,0.0,0.0 ; 0.0,1.0,0.0 ; 0.0,0.0,1.0
@@ -125,7 +128,7 @@ def subroutine_parseConfContents(file):
         "directions_to_study":"",
         'spin': '',  # Spin consideration (true/false)
         'truncation_radius': '',
-        'Wyckoff_type_num': '',  # Total number of Wyckoff position types
+        'Wyckoff_position_num': '', # Total number of Wyckoff positions
         'lattice_basis': '',  # Lattice basis vectors (3x3 matrix)
         'space_group': '',  # Space group number
         "space_group_name_H_M":'',# Space group name
@@ -178,13 +181,12 @@ def subroutine_parseConfContents(file):
                 continue
 
             # ==========================================
-            # Parse number of Wyckoff types
+            # Parse number of Wyckoff positions
             # ==========================================
-            match_wyckoff_num = re.match(Wyckoff_type_num_pattern, oneLine)
-            if match_wyckoff_num:
-                config['Wyckoff_type_num'] = int(match_wyckoff_num.group(1))
+            match_wyckoff_pos_num = re.match(Wyckoff_position_num_pattern, oneLine)
+            if match_wyckoff_pos_num:
+                config['Wyckoff_position_num'] = int(match_wyckoff_pos_num.group(1))
                 continue
-
             # ==========================================
             # Parse lattice basis vectors
             # Format: v1x,v1y,v1z ; v2x,v2y,v2z ; v3x,v3y,v3z
@@ -202,6 +204,92 @@ def subroutine_parseConfContents(file):
                 config['lattice_basis'] = vectors
                 continue
 
+            # ==========================================
+            # parse space group number
+            # ==========================================
+            match_space_group_num=re.fullmatch(space_group_pattern,oneLine)
+            if match_space_group_num:
+                config['space_group'] = int(match_space_group_num.group(1))
+                continue
+            # ==========================================
+            # Parse space group name (H-M)
+            # ==========================================
+            match_space_group_name = re.match(space_group_name_H_M_pattern, oneLine)
+            if match_space_group_name:
+                config['space_group_name_H_M'] = match_space_group_name.group(1).strip()
+                continue
+            # ==========================================
+            # Parse cell setting
+            # ==========================================
+            match_cell_setting = re.match(cell_setting_pattern, oneLine)
+            if match_cell_setting:
+                config['cell_setting'] = match_cell_setting.group(1).strip()
+                continue
+            # ==========================================
+            # Parse space group origin
+            # ==========================================
+            match_origin = re.match(space_group_origin_pattern, oneLine)
+            if match_origin:
+                origin_coords = [
+                    float(match_origin.group(1)),
+                    float(match_origin.group(2)),
+                    float(match_origin.group(3))
+                ]
+                config['space_group_origin'] = origin_coords
+                continue
+            # ==========================================
+            # Parse Atom/Orbital Definitions (Wyckoff Types)
+            # Example: B0_orbitals=2pz,2s
+            # ==========================================
+            match_atom_orbital = re.match(atom_orbital_pattern, oneLine)
+            if match_atom_orbital:
+                wyckoff_position_label = match_atom_orbital.group(1)
+                orbitals_string = match_atom_orbital.group(2)
+                orbital_list = [orb.strip() for orb in orbitals_string.split(',')]
+                # Store in types dictionary
+                config['Wyckoff_position_types'][wyckoff_position_label] = orbital_list
+                # Check if this label already exists in the positions list
+                # (e.g. if position coefs were parsed first)
+                entry_found = False
+                for pos in config['Wyckoff_positions']:
+                    if pos['label'] == wyckoff_position_label:
+                        pos['orbitals'] = orbital_list
+                        entry_found = True
+                        break
+                # If not found, create new entry
+                if not entry_found:
+                    config['Wyckoff_positions'].append({
+                        'label': wyckoff_position_label,
+                        'orbitals': orbital_list
+                    })
+                continue
+            # ==========================================
+            # Parse Atom Position Coefficients
+            # Example: B0_position_coefs=0.33333, 0.66667, 0.0
+            # ==========================================
+            match_atom_pos = re.match(atom_position_pattern, oneLine)
+            if match_atom_pos:
+                wyckoff_position_label = match_atom_pos.group(1)
+                coords = [
+                    float(match_atom_pos.group(2)),
+                    float(match_atom_pos.group(3)),
+                    float(match_atom_pos.group(4))
+                ]
+                # Check if this label already exists in the positions list
+                # (e.g. if orbitals were parsed first)
+                entry_found = False
+                for pos in config['Wyckoff_positions']:
+                    if pos['label'] == wyckoff_position_label:
+                        pos['position'] = coords
+                        entry_found = True
+                        break
+                # If not found, create new entry
+                if not entry_found:
+                    config['Wyckoff_positions'].append({
+                        'label': wyckoff_position_label,
+                        'position': coords
+                    })
+                continue
 
 
     return config
