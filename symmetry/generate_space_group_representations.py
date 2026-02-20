@@ -44,6 +44,7 @@ try:
     # unit cell lattice basis vectors (3x3 matrix)
     # Each row is a lattice vector in Cartesian coordinates\
     lattice_basis=parsed_config['lattice_basis']
+    lattice_basis=np.array(lattice_basis)
     conf_file_path=parsed_config["config_file_path"]
     conf_file_dir=Path(conf_file_path).parent
     symmetry_matrices_file_name_path=str(conf_file_dir/symmetry_matrices_file_name)
@@ -51,7 +52,7 @@ try:
     with open(symmetry_matrices_file_name_path, 'rb') as f:
         symmetry_matrices = pickle.load(f)
 
-    print(symmetry_matrices,file=sys.stdout)
+
 
 
 except FileNotFoundError:
@@ -63,3 +64,34 @@ except KeyError as e:
 except Exception as e:
     print(f"An unexpected error occurred: {e}", file=sys.stderr)
     exit(val_err_code)
+
+
+# ==============================================================================
+# Define coordinate transformation functions
+# ==============================================================================
+def space_group_to_cartesian_basis(symmetry_matrices,lattice_basis):
+    """
+    in .cif file, the symmetry_matrices are compatible with the lattice_basis
+    :param symmetry_matrices:
+    :param lattice_basis:
+    :return:
+    """
+    AT = lattice_basis.T  # Transpose for column-vector representation
+    AT_inv = np.linalg.inv(AT)
+    space_group_matrices=[]
+    for key,value in symmetry_matrices.items():
+        space_group_matrices.append(value)
+    space_group_matrices=np.array(space_group_matrices)
+    num_operators = len(space_group_matrices)
+    # print(space_group_matrices,file=sys.stdout)
+    space_group_matrices_cartesian = np.zeros((num_operators, 3, 4), dtype=float)
+    for j in range(num_operators):
+        # Transform rotation/reflection part
+        space_group_matrices_cartesian[j, :, 0:3] = AT @ space_group_matrices[j, :, 0:3] @ AT_inv
+        # Transform translation part
+        space_group_matrices_cartesian[j, :, 3] = AT @ space_group_matrices[j, :, 3]
+
+    return space_group_matrices_cartesian
+
+
+space_group_matrices_cartesian=space_group_to_cartesian_basis(symmetry_matrices,lattice_basis)

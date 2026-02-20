@@ -159,7 +159,7 @@ sgr_result = subprocess.run(
     text=True
 )
 print(f"Exit code: {sgr_result.returncode}")
-
+print(sgr_result.stdout)
 # Check if space group representations were generated successfully
 if sgr_result.returncode != 0:
     print("Space group representations generation failed!")
