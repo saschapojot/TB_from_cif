@@ -19,6 +19,7 @@ sp.init_printing(use_unicode=False, wrap_line=False)
 argErrCode = 20
 save_err_code=30
 json_err_code=31
+json_err_code_2=32
 if (len(sys.argv) != 2):
     print("wrong number of arguments")
     print("example: python general_script.py /path/to/xxx.conf")
@@ -118,3 +119,59 @@ except json.JSONDecodeError as e:
     print("Raw output:")
     print(confResult.stdout)
     exit(json_err_code)
+
+except Exception as e:
+    print(f"An unexpected error occurred: {e}")
+    exit(json_err_code_2)
+
+
+# Convert parsed_config to JSON string for passing to other subprocesses
+config_json = json.dumps(parsed_config)
+
+# ==============================================================================
+# STEP 3: Run sanity checks on parsed configuration
+# ==============================================================================
+print("\n" + "=" * 60)
+print("RUNNING SANITY CHECK")
+print("=" * 60)
+
+# Run sanity_check.py and pass the JSON data via stdin
+sanity_result = subprocess.run(
+    ["python3", "./parse_files/sanity_check.py"],
+    input=config_json,
+    capture_output=True,
+    text=True
+)
+print(f"Exit code: {sanity_result.returncode}")
+
+# ==============================================================================
+# STEP 4: Generate space group representations
+# ==============================================================================
+print("\n" + "=" * 60)
+print("COMPUTING SPACE GROUP REPRESENTATIONS")
+print("=" * 60)
+
+# Run generate_space_group_representations.py
+sgr_result = subprocess.run(
+    ["python3", "./symmetry/generate_space_group_representations.py"],
+    input=config_json,
+    capture_output=True,
+    text=True
+)
+print(f"Exit code: {sgr_result.returncode}")
+
+# Check if space group representations were generated successfully
+if sgr_result.returncode != 0:
+    print("Space group representations generation failed!")
+    print(f"return code={sgr_result.returncode}")
+    print("Error output:")
+    print(sgr_result.stderr)
+    print("Standard output:")
+    print(sgr_result.stdout)
+    exit(sgr_result.returncode)
+
+
+
+else:
+    print("Space group representations generated successfully!")
+    # Parse the JSON output
