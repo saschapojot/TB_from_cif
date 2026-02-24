@@ -49,3 +49,15 @@ orbital_map = {
     '7fxyz': 71, '7fz3': 72, '7fxz2': 73, '7fyz2': 74,
     '7fz(x2-y2)': 75, '7fx(x2-3y2)': 76, '7fy(3x2-y2)': 77,
 }
+
+#processed information from .conf file is saved to this pickle fule
+processed_input_pkl_file_name="preprocessed_input.pkl"
+
+#orbitals without principal quantum number
+#TODO: f orbitals order
+full_orbitals = [
+    's',
+    'px', 'py', 'pz',
+    'dxy', 'dyz', 'dxz', 'dx2-y2', 'dz2',
+    'fz3', 'fxz3', 'fyz3', 'fxyz', 'fz(x2-y2)', 'fx(x2-3y2)', 'fy(3x2-y2)'
+]

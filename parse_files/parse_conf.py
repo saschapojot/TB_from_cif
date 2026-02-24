@@ -243,23 +243,24 @@ def subroutine_parseConfContents(file):
             # ==========================================
             match_atom_orbital = re.match(atom_orbital_pattern, oneLine)
             if match_atom_orbital:
-                wyckoff_position_label = match_atom_orbital.group(1)
+                # wyckoff_position_label = match_atom_orbital.group(1)
+                wyckoff_position_name=match_atom_orbital.group(1)
                 orbitals_string = match_atom_orbital.group(2)
                 orbital_list = [orb.strip() for orb in orbitals_string.split(',')]
                 # Store in types dictionary
-                config['Wyckoff_position_types'][wyckoff_position_label] = orbital_list
-                # Check if this label already exists in the positions list
+                config['Wyckoff_position_types'][wyckoff_position_name] = orbital_list
+                # Check if this wyckoff_position_name already exists in the positions list
                 # (e.g. if position coefs were parsed first)
                 entry_found = False
                 for pos in config['Wyckoff_positions']:
-                    if pos['label'] == wyckoff_position_label:
+                    if pos['position_name'] == wyckoff_position_name:
                         pos['orbitals'] = orbital_list
                         entry_found = True
                         break
                 # If not found, create new entry
                 if not entry_found:
                     config['Wyckoff_positions'].append({
-                        'label': wyckoff_position_label,
+                        'position_name': wyckoff_position_name,
                         'orbitals': orbital_list
                     })
                 continue
@@ -269,24 +270,24 @@ def subroutine_parseConfContents(file):
             # ==========================================
             match_atom_pos = re.match(atom_position_pattern, oneLine)
             if match_atom_pos:
-                wyckoff_position_label = match_atom_pos.group(1)
+                wyckoff_position_name = match_atom_pos.group(1)
                 coords = [
                     float(match_atom_pos.group(2)),
                     float(match_atom_pos.group(3)),
                     float(match_atom_pos.group(4))
                 ]
-                # Check if this label already exists in the positions list
+                # Check if this wyckoff_position_name already exists in the positions list
                 # (e.g. if orbitals were parsed first)
                 entry_found = False
                 for pos in config['Wyckoff_positions']:
-                    if pos['label'] == wyckoff_position_label:
+                    if pos['position_name'] == wyckoff_position_name:
                         pos['position'] = coords
                         entry_found = True
                         break
                 # If not found, create new entry
                 if not entry_found:
                     config['Wyckoff_positions'].append({
-                        'label': wyckoff_position_label,
+                        'position_name': wyckoff_position_name,
                         'position': coords
                     })
                 continue

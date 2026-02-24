@@ -1,5 +1,6 @@
 
-#this is for demonstrationg during symmetry analysis development
+#this is for demonstration during symmetry analysis development
+#TODO: f orbital representations must be rechecked
 ###########################
 Part I, proprocessing
 1. python init_from_cif.py ./path/to/xxx.cif, #the xxx.cif file is generated from material studio

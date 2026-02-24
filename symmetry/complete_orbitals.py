@@ -3,14 +3,14 @@ import sys
 import json
 import copy
 from pathlib import Path
+
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 from name_conventions import orbital_map
 
-
 # Exit codes
-json_err_code = 4   # JSON parsing error
+json_err_code = 4  # JSON parsing error
 
 # ==============================================================================
 # STEP 1: Read and parse JSON input from stdin
@@ -21,7 +21,6 @@ try:
 except json.JSONDecodeError as e:
     print(f"Error parsing JSON input: {e}", file=sys.stderr)
     exit(json_err_code)
-
 
 # ==============================================================================
 # STEP 3: Extract configuration and space group data
@@ -48,9 +47,9 @@ num_operations, _, _ = repr_s_np.shape
 # Structure: [1s, 2s, 2p, 3s, 3p, 3d, 4s, 4p, 4d, 4f, ...]
 # Values: dimension of each shell (s=1, p=3, d=5, f=7)
 orbital_nums_spdf = np.array([
-    1,           # 1s
-    1, 3,        # 2s, 2p
-    1, 3, 5,     # 3s, 3p, 3d
+    1,  # 1s
+    1, 3,  # 2s, 2p
+    1, 3, 5,  # 3s, 3p, 3d
     1, 3, 5, 7,  # 4s, 4p, 4d, 4f
     1, 3, 5, 7,  # 5s, 5p, 5d, 5f
     1, 3, 5, 7,  # 6s, 6p, 6d, 6f
@@ -66,6 +65,7 @@ print(f"orbital_max_dim={orbital_max_dim}", file=sys.stderr)
 # Shape: (num_operations, 78, 78)
 # This is a block diagonal matrix with blocks for each orbital shell
 spdf_combined = np.zeros((num_operations, orbital_max_dim, orbital_max_dim))
+
 
 # ==============================================================================
 # STEP 5: Define function to build orbital vectors for each atom
@@ -91,10 +91,12 @@ def build_orbital_vectors(parsed_config):
     atom_orbital_vectors = {}
     # Iterate over Wyckoff positions (formerly atom_positions)
     for atom in parsed_config['Wyckoff_positions']:
-        label=atom["label"]#Wyckoff position
+        # CHANGED: 'label' -> 'position_name'
+        position_name = atom["position_name"]  # Wyckoff position identifier
+
         # Get orbitals for this Wyckoff position from configuration
         # Using Wyckoff_position_types instead of atom_types
-        orbitals =atom['orbitals']
+        orbitals = atom['orbitals']
         # Create 78-dimensional binary orbital vector (all zeros initially)
         orbital_vector = np.zeros(78)
         # Set 1 for each active orbital
@@ -102,9 +104,9 @@ def build_orbital_vectors(parsed_config):
             if orbital in orbital_map:
                 orbital_vector[orbital_map[orbital]] = 1
             else:
-                print(f"Warning: Orbital '{orbital}' for atom '{label}' not recognized", file=sys.stderr)
+                print(f"Warning: Orbital '{orbital}' for atom '{position_name}' not recognized", file=sys.stderr)
 
-        atom_orbital_vectors[label] = orbital_vector
+        atom_orbital_vectors[position_name] = orbital_vector
 
     return atom_orbital_vectors
 
@@ -129,7 +131,6 @@ for j in range(num_operations):
 
         current_idx += block_size
 
-
 # ==============================================================================
 # STEP 7: Find which orbitals are coupled by symmetry
 # ==============================================================================
@@ -137,7 +138,6 @@ for j in range(num_operations):
 # If non_zero_spdf_combined[i,j] is True, orbitals i and j are coupled by at least one symmetry operation
 # This is computed by summing absolute values across all symmetry operations
 non_zero_spdf_combined = np.sum(np.abs(spdf_combined), axis=0) > 1e-6
-
 
 # ==============================================================================
 # STEP 8: Build initial orbital vectors from user input
@@ -175,9 +175,8 @@ for atom_name, orbital_vector in atom_orbital_vectors.items():
     else:
         added_orbitals_dict[atom_name] = []  # Empty list if no orbitals added
 
-
 # Replace the original vectors with updated (completed) ones
-atom_orbital_vectors = updated_atom_orbital_vectors  # Now labels all symmetry-required orbitals with
+atom_orbital_vectors = updated_atom_orbital_vectors  # Now position_names all symmetry-required orbitals with
 print(f"atom_orbital_vectors={atom_orbital_vectors}", file=sys.stderr)
 print(f"added_orbitals_dict={added_orbitals_dict}", file=sys.stderr)
 
@@ -207,11 +206,12 @@ for atom_name, orbital_vector in atom_orbital_vectors.items():
 
         repr_on_active_orbitals[atom_name] = np.array(repr_matrices_for_atom)
 
-        print(f"Atom {atom_name}: Extracted {num_operations} representation matrices of size {len(active_indices)}x{len(active_indices)}", file=sys.stderr)
+        print(
+            f"Atom {atom_name}: Extracted {num_operations} representation matrices of size {len(active_indices)}x{len(active_indices)}",
+            file=sys.stderr)
     else:
         repr_on_active_orbitals[atom_name] = np.array([])
         print(f"Atom {atom_name}: No active orbitals", file=sys.stderr)
-
 
 # ==============================================================================
 # STEP 11: Verify and report results (debugging output)
@@ -227,7 +227,6 @@ for atom_name, repr_matrices in repr_on_active_orbitals.items():
         active_orbital_names = [name for name, idx in orbital_map.items() if idx in active_indices]
         print(f"  Active orbitals: {active_orbital_names}", file=sys.stderr)
 
-
 # ==============================================================================
 # STEP 12: Package results and output as JSON
 # ==============================================================================
@@ -239,7 +238,8 @@ output_data = {
     "added_orbitals": added_orbitals_dict,
 
     # Symmetry representation matrices acting on each atom's active orbital subspace
-    "representations_on_active_orbitals": {name: matrices.tolist() for name, matrices in repr_on_active_orbitals.items()}
+    "representations_on_active_orbitals": {name: matrices.tolist() for name, matrices in
+                                           repr_on_active_orbitals.items()}
 }
 
 # Output as JSON to stdout

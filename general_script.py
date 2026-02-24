@@ -9,23 +9,25 @@ import sympy as sp
 import pickle
 import base64
 
-from name_conventions import orbital_map
+from name_conventions import orbital_map,processed_input_pkl_file_name
+
 sp.init_printing(use_unicode=False, wrap_line=False)
-#this script computes for general
+#self defined
+from classes.class_defs import frac_to_cartesian, atomIndex, hopping, vertex, T_tilde_total
+# this script computes for general
 
 # ==============================================================================
 # STEP 1: Validate command line arguments
 # ==============================================================================
 
 argErrCode = 20
-save_err_code=30
-json_err_code=31
-json_err_code_2=32
+save_err_code = 30
+json_err_code = 31
+json_err_code_2 = 32
 if (len(sys.argv) != 2):
     print("wrong number of arguments")
     print("example: python general_script.py /path/to/xxx.conf")
     exit(argErrCode)
-
 
 confFileName = str(sys.argv[1])
 # ==============================================================================
@@ -46,7 +48,6 @@ if confResult.returncode != 0:
 # Parse the JSON output from parse_conf.py
 try:
     parsed_config = json.loads(confResult.stdout)
-    print(parsed_config)
     # Display parsed configuration in a formatted way
     print("=" * 60)
     print("COMPLETE PARSED CONFIGURATION")
@@ -95,23 +96,25 @@ try:
     print("\nAtom Position Coefficients:")
     wyckoff_positions = parsed_config.get('Wyckoff_positions', [])
     if wyckoff_positions:
-        # Sort by label for cleaner output
-        wyckoff_positions.sort(key=lambda x: x.get('label', ''))
+        # Sort by position_name for cleaner output
+        wyckoff_positions.sort(key=lambda x: x.get('position_name', ''))
 
         for pos in wyckoff_positions:
-            label = pos.get('label', 'Unknown')
+            # CHANGED: 'label' -> 'position_name'
+            position_name = pos.get('position_name', 'Unknown')
             coords = pos.get('position')
 
             if coords:
                 # Format coordinates nicely (e.g., [0.333, 0.667, 0.0])
                 coords_str = f"[{coords[0]}, {coords[1]}, {coords[2]}]"
-                print(f"  {label:<5} : {coords_str}")
+                print(f"  {position_name:<5} : {coords_str}")
             else:
-                print(f"  {label:<5} : No coordinates defined")
+                print(f"  {position_name:<5} : No coordinates defined")
     else:
         print("  No positions found.")
     # ---------------------------------------------------------
     print("=" * 60)
+
 
 
 except json.JSONDecodeError as e:
@@ -124,7 +127,6 @@ except json.JSONDecodeError as e:
 except Exception as e:
     print(f"An unexpected error occurred: {e}")
     exit(json_err_code_2)
-
 
 # Convert parsed_config to JSON string for passing to other subprocesses
 config_json = json.dumps(parsed_config)
@@ -197,7 +199,6 @@ else:
             space_group_representations.keys()) if 'space_group_representations' in locals() else "Could not parse JSON")
         exit(1)
 
-
 lattice_basis = np.array(parsed_config['lattice_basis'])
 print("\n" + "=" * 60)
 print("COMPLETING ORBITALS UNDER SYMMETRY")
@@ -219,7 +220,6 @@ completing_result = subprocess.run(
     capture_output=True,
     text=True
 )
-
 
 # Check if orbital completion succeeded
 if completing_result.returncode != 0:
@@ -270,32 +270,26 @@ try:
                 f"  {atom_type}: {repr_array.shape[0]} operations, {repr_array.shape[1]}×{repr_array.shape[2]} matrices")
 
     # Update parsed_config with completed orbitals
-    # Ensure Wyckoff_position_types exists
-    if 'Wyckoff_position_types' not in parsed_config:
-        parsed_config['Wyckoff_position_types'] = {}
-        for atom_pos in parsed_config['Wyckoff_positions']:
-            label = atom_pos['label']
-            print(f"Updating orbitals for label={label}")
+    for atom_pos in parsed_config['Wyckoff_positions']:
+        position_name = atom_pos['position_name']
+        print(f"Updating orbitals for position_name={position_name}")
+        # Get the updated orbital vector for this atom
+        if position_name in updated_vectors:
+            vector = updated_vectors[position_name]
+            active_indices = [i for i, val in enumerate(vector) if val == 1]
+            active_orbital_names = [orbital_map_reverse.get(idx) for idx in active_indices]
+            # Update the specific position entry (consistency)
+            atom_pos['orbitals'] = active_orbital_names
+            # Update the Wyckoff_position_types dictionary for this position_name
+            parsed_config['Wyckoff_position_types'][position_name] = active_orbital_names
 
-            # Get the updated orbital vector for this atom
-            if label in updated_vectors:
-                vector = updated_vectors[label]
-                active_indices = [i for i, val in enumerate(vector) if val == 1]
-                active_orbital_names = [orbital_map_reverse.get(idx) for idx in active_indices]
-
-                # Update the specific position entry (consistency)
-                atom_pos['orbitals'] = active_orbital_names
-
-                # Update the Wyckoff_position_types dictionary for this label
-                parsed_config['Wyckoff_position_types'][label] = active_orbital_names
-
-        # Store completion results for later use
-        orbital_completion_results = {
-            "status": "completed",
-            "added_orbitals": added_orbitals,
-            "orbital_vectors": updated_vectors,
-            "representations_on_active_orbitals": representations,
-        }
+    # Store completion results for later use
+    orbital_completion_results = {
+        "status": "completed",
+        "added_orbitals": added_orbitals,
+        "orbital_vectors": updated_vectors,
+        "representations_on_active_orbitals": representations,
+    }
 
 except json.JSONDecodeError as e:
     print("Error parsing JSON output from complete_orbitals.py:")
@@ -321,7 +315,8 @@ except Exception as e:
 print("\n" + "=" * 60)
 print("ORBITAL COMPLETION FINISHED")
 print("=" * 60)
-
+print(f"parsed_config['Wyckoff_position_types']={parsed_config['Wyckoff_position_types']}")
+print(f"parsed_config['Wyckoff_positions']={parsed_config['Wyckoff_positions']}")
 # ==============================================================================
 # Save preprocessing data to pickle file
 # ==============================================================================
@@ -329,17 +324,71 @@ print("\n" + "=" * 80)
 print("SAVING PREPROCESSING DATA")
 print("=" * 80)
 # Prepare comprehensive preprocessing data package
-origin_cart=[0,0,0]#origin for .cif file
-origin_cart=np.array(origin_cart)
+origin_cart = [0, 0, 0]  # origin for .cif file
+origin_cart = np.array(origin_cart)
+repr_s, repr_p, repr_d, repr_f = space_group_representations["repr_s_p_d_f"]
+repr_s_np = np.array(repr_s)
+repr_p_np = np.array(repr_p)
+repr_d_np = np.array(repr_d)
+repr_f_np = np.array(repr_f)
+space_group_matrices_cartesian = np.array(space_group_representations["space_group_matrices_cartesian"])
+space_group_cart = [np.array(item) for item in space_group_matrices_cartesian]
 preprocessing_data = {
-# Core configuration
+    # Core configuration
     'parsed_config': parsed_config,
-# Space group representations
+    # Space group representations
     'space_group_representations': space_group_representations,
+    # NumPy arrays for efficient computation
+    'space_group_cart': space_group_cart,  # List of np.ndarray
     'origin_cart': origin_cart,  # np.ndarray (3,)
     # Orbital representation matrices
     'repr_s_np': repr_s_np,  # np.ndarray (num_ops, 1, 1)
     'repr_p_np': repr_p_np,  # np.ndarray (num_ops, 3, 3)
     'repr_d_np': repr_d_np,  # np.ndarray (num_ops, 5, 5)
     'repr_f_np': repr_f_np,  # np.ndarray (num_ops, 7, 7)
+    # Orbital completion results
+    'orbital_completion_results': orbital_completion_results,
+    # Orbital mapping dictionary
+    'orbital_map': orbital_map,
+    # Metadata
+    'creation_date': datetime.now().isoformat(),
+    'script_version': '1.0',
+    'description': 'Preprocessing data for tight-binding model construction'
+
 }
+
+
+# Determine output file path
+config_file_path = parsed_config["config_file_path"]
+config_dir = Path(config_file_path).parent
+preprocessed_pickle_file =  str(config_dir/processed_input_pkl_file_name)
+# Save to pickle file
+try:
+    with open(preprocessed_pickle_file, 'wb') as f:
+        pickle.dump(preprocessing_data, f, protocol=pickle.HIGHEST_PROTOCOL)
+    # Calculate file size
+    file_size = Path(preprocessed_pickle_file).stat().st_size
+    if file_size < 1024:
+        size_str = f"{file_size} bytes"
+    elif file_size < 1024 ** 2:
+        size_str = f"{file_size / 1024:.2f} KB"
+    else:
+        size_str = f"{file_size / (1024 ** 2):.2f} MB"
+    print(f"✓ Preprocessing data saved successfully!")
+    print(f"  File: {preprocessed_pickle_file}")
+    print(f"  Size: {size_str}")
+    print(f"\nSaved data includes:")
+    print(f"  - parsed_config: Configuration dictionary")
+    print(f"  - space_group_representations: Full representation data")
+    print(f"  - space_group_cart: {len(space_group_cart)} operations")
+    print(f"  - origin_cart: Space group origin")
+    print(f"  - repr_s/p/d/f_np: Orbital representation matrices")
+    print(f"  - orbital_completion_results: Symmetry-completed orbitals")
+    print(f"  - orbital_map: 78-dimensional orbital mapping")
+
+except Exception as e:
+    print(f"✗ Failed to save preprocessing data!")
+    print(f"  Error: {e}")
+    exit(save_err_code)
+
+print("=" * 80)
