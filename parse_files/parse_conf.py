@@ -248,7 +248,8 @@ def subroutine_parseConfContents(file):
                 orbitals_string = match_atom_orbital.group(2)
                 orbital_list = [orb.strip() for orb in orbitals_string.split(',')]
                 # Store in types dictionary
-                config['Wyckoff_position_types'][wyckoff_position_name] = orbital_list
+                # CHANGED: Wrap orbital_list in a dictionary with key 'orbitals'
+                config['Wyckoff_position_types'][wyckoff_position_name] = {'orbitals': orbital_list}
                 # Check if this wyckoff_position_name already exists in the positions list
                 # (e.g. if position coefs were parsed first)
                 entry_found = False
@@ -281,14 +282,16 @@ def subroutine_parseConfContents(file):
                 entry_found = False
                 for pos in config['Wyckoff_positions']:
                     if pos['position_name'] == wyckoff_position_name:
-                        pos['position'] = coords
+                        # CHANGED: 'position' -> 'fractional_coordinates'
+                        pos['fractional_coordinates'] = coords
                         entry_found = True
                         break
                 # If not found, create new entry
                 if not entry_found:
                     config['Wyckoff_positions'].append({
                         'position_name': wyckoff_position_name,
-                        'position': coords
+                        # CHANGED: 'position' -> 'fractional_coordinates'
+                        'fractional_coordinates': coords
                     })
                 continue
 
