@@ -61,3 +61,14 @@ full_orbitals = [
     'dxy', 'dyz', 'dxz', 'dx2-y2', 'dz2',
     'fz3', 'fxz3', 'fyz3', 'fxyz', 'fz(x2-y2)', 'fx(x2-3y2)', 'fy(3x2-y2)'
 ]
+
+type_linear="linear"
+type_hermitian="hermitian"
+
+H_latex_file_name="H.txt"
+
+H_html_file_name="H_html.html"
+
+H_pkl_file_name="hamiltonian_data.pkl"
+
+hopping_parameters_template_file_name="hopping_parameters.txt"

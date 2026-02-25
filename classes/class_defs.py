@@ -1027,13 +1027,13 @@ class T_tilde_total():
             'im_params': im_params_sorted
         }
 
-    def write_to_html(self, filename, dim, precision=3):
+    def write_to_html(self, filename, directions_to_study, precision=3):
         """
         Initialize an HTML file with basic structure and title.
         includes MathJax for future LaTeX rendering.
         """
         # Get the matrix structure HTML string
-        matrix_structure_html = self.get_k_block_structure_html(dim)
+        matrix_structure_html = self.get_k_block_structure_html(directions_to_study)
         # Get the detailed table structure (Grid form with labels)
         detailed_table_html = self.get_detailed_hamiltonian_table_html()
 
@@ -1041,57 +1041,57 @@ class T_tilde_total():
         nonzero_elements_html = self.get_nonzero_elements_html(precision)
 
         html_content = rf"""<!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Hamiltonian Analysis</title>
-            <!-- Load MathJax for LaTeX rendering -->
-            <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-            <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-            <style>
-                body {{
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    margin: 40px;
-                    background-color: #fdfdfd;
-                    color: #333;
-                }}
-                h1 {{
-                    color: #2c3e50;
-                    border-bottom: 2px solid #3498db;
-                    padding-bottom: 10px;
-                }}
-                .container {{
-                    max-width: 1200px;
-                    margin: 0 auto;
-                }}
-                .section {{
-                    margin-top: 30px;
-                    padding: 20px;
-                    background: #fff;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Hamiltonian block in k space, {self.system_name}</h1>
-                <p>Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+           <html lang="en">
+           <head>
+               <meta charset="UTF-8">
+               <meta name="viewport" content="width=device-width, initial-scale=1.0">
+               <title>Hamiltonian Analysis</title>
+               <!-- Load MathJax for LaTeX rendering -->
+               <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+               <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+               <style>
+                   body {{
+                       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                       margin: 40px;
+                       background-color: #fdfdfd;
+                       color: #333;
+                   }}
+                   h1 {{
+                       color: #2c3e50;
+                       border-bottom: 2px solid #3498db;
+                       padding-bottom: 10px;
+                   }}
+                   .container {{
+                       max-width: 1200px;
+                       margin: 0 auto;
+                   }}
+                   .section {{
+                       margin-top: 30px;
+                       padding: 20px;
+                       background: #fff;
+                       border-radius: 8px;
+                       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   }}
+               </style>
+           </head>
+           <body>
+               <div class="container">
+                   <h1>Hamiltonian block in k space, {self.system_name}</h1>
+                   <p>Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
 
-                <!-- Insert General Matrix Structure -->
-                {matrix_structure_html}
-                <!-- Detailed Table -->
-                <div class="section">
-                    <h2>Detailed Hamiltonian Structure</h2>
-                    <p>The table below maps the matrix indices to specific Atoms and Orbitals. Non-zero elements are denoted by \( h_{{ij}} \).</p>
-                    {detailed_table_html}
-                </div>
-                <!-- Insert Non-zero Elements -->
-                {nonzero_elements_html}
-            </div>
-        </body>
-        </html>"""
+                   <!-- Insert General Matrix Structure -->
+                   {matrix_structure_html}
+                   <!-- Detailed Table -->
+                   <div class="section">
+                       <h2>Detailed Hamiltonian Structure</h2>
+                       <p>The table below maps the matrix indices to specific Atoms and Orbitals. Non-zero elements are denoted by \( h_{{ij}} \).</p>
+                       {detailed_table_html}
+                   </div>
+                   <!-- Insert Non-zero Elements -->
+                   {nonzero_elements_html}
+               </div>
+           </body>
+           </html>"""
 
         try:
             with open(filename, 'w', encoding='utf-8') as f:
@@ -1100,12 +1100,12 @@ class T_tilde_total():
         except Exception as e:
             print(f"✗ Failed to write HTML file: {e}")
 
-    def get_k_block_structure_html(self, dim):
+    def get_k_block_structure_html(self, directions_to_study):
         """
         Appends the general matrix structure (symbolic h_ij form) to the HTML file.
         Inserts the content before the closing </body> tag.
         Args:
-            dim:  System dimension (1, 2, or 3) for k-vector arguments
+            directions_to_study: list of directions (e.g. ["x", "y"])
 
         Returns:
 
@@ -1113,11 +1113,24 @@ class T_tilde_total():
         if self.hamiltonian_dimension is None:
             print("Warning: Hamiltonian dimension not set. Skipping structure print.")
             return
+
+        # Map string directions to indices for display
+        # The Hamiltonian uses k0, k1, k2 internally
+        direction_map = {"x": 0, "y": 1, "z": 2}
+
         # 1. Construct the Left Hand Side: h(k0, k1, ...)
         k_args = []
-        for i in range(dim):
-            k_args.append(f"k_{{{i}}}")
+        for direction in directions_to_study:
+            # Handle both string "x" and potential integers (just in case)
+            d_str = str(direction).lower()
+            if d_str in direction_map:
+                idx = direction_map[d_str]
+                k_args.append(f"k_{{{idx}}}")
+            else:
+                raise ValueError(f"Unknown direction '{direction}'. Allowed directions are 'x', 'y', 'z'.")
+
         lhs = f"h({','.join(k_args)})"
+
         # 2. Construct the Matrix Rows: h_{ij}
         N = self.hamiltonian_dimension
         rows = []
