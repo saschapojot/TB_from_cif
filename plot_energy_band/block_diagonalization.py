@@ -6,8 +6,8 @@ from pathlib import Path
 from datetime import datetime
 import pickle
 
-
-from plot_energy_band.load_path_in_Brillouin_zone import *
+from plot_energy_band.load_path_in_Brillouin_zone import  subroutine_get_interpolated_points_in_BZ_and_quantum_number_k
+from load_Hk_parameters.load_Hk_and_hopping import subroutine_get_Hk
 
 
 # Add project root to Python path
