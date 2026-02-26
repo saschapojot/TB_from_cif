@@ -7,7 +7,7 @@ sp.init_printing(use_unicode=False, wrap_line=False)
 #this script runs diagonalization for plotting band
 
 from plot_energy_band.block_diagonalization import *
-from plot_energy_band.load_path_in_Brillouin_zone import *
+
 
 argErrCode = 20
 if (len(sys.argv) != 2):
