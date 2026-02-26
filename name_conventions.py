@@ -72,3 +72,5 @@ H_html_file_name="H_html.html"
 H_pkl_file_name="hamiltonian_data.pkl"
 
 hopping_parameters_template_file_name="hopping_parameters.txt"
+
+BZ_path_file_name="BZ_path.conf"
