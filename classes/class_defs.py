@@ -701,6 +701,8 @@ class T_tilde_total():
             re_T^{0}_{2s,2s} → \operatorname{Re}(T^{0}_{2s,2s})
             im_T^{0}_{2s,2s} → \operatorname{Im}(T^{0}_{2s,2s})
             \overline{re_T^{0}_{2s,2s}} → \overline{\operatorname{Re}(T^{0}_{2s,2s})}
+            \operatorname{re} → \operatorname{Re}
+            \operatorname{im} → \operatorname{Im}
 
         Args:
             latex_str: LaTeX string with potential re_XXX and im_XXX symbols
@@ -739,6 +741,12 @@ class T_tilde_total():
 
         # Apply replacement
         fixed_str = re.sub(pattern, replace_re_im, latex_str)
+
+        # Fix SymPy's standard output for real/imaginary parts
+        # SymPy outputs \operatorname{re} and \operatorname{im} (lowercase)
+        # We replace them with \operatorname{Re} and \operatorname{Im} (uppercase)
+        fixed_str = fixed_str.replace(r'\operatorname{re}', r'\operatorname{Re}')
+        fixed_str = fixed_str.replace(r'\operatorname{im}', r'\operatorname{Im}')
 
         return fixed_str
 
