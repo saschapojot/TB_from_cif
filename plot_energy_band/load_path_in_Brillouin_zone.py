@@ -142,24 +142,25 @@ def parse_preprocessed_input(preprocessed_input_file_name):
 
 def read_BZ_path_conf(BZ_path_file_name: str, processed_input_data):
     """
-    Reads the k-path configuration file and parses coordinates based on system dimensionality.
-    Ensures the output coords are always 3D [x, y, z], filling unused dimensions with 0.
+    Reads the k-path configuration file.
+    Always expects 3D coordinates [x, y, z] in the file.
+    Selects specific components based on 'directions_to_study' (e.g., if directions=['x', 'z'],
+    it takes the 1st and 3rd components from the file and places them into the final vector).
 
     Args:
         BZ_path_file_name: Path to the BZ_path.conf file.
-        processed_input_data: Dictionary containing parsed input data (must contain 'dim' and 'directions_to_study').
+        processed_input_data: Dictionary containing parsed input data (must contain 'directions_to_study').
 
     Returns:
         list: A list of dictionaries, where each dictionary represents a k-point:
               {'label': str, 'coords': [float, float, float]}
     """
-    # 1. Retrieve dimensionality and directions
+    # 1. Retrieve directions
     try:
-        dim = processed_input_data["parsed_config"]['dim']
         directions = processed_input_data["parsed_config"].get('directions_to_study', ['x', 'y', 'z'])
     except KeyError:
         raise KeyError(
-            "The processed_input_data dictionary is missing 'parsed_config', 'dim', or 'directions_to_study'.")
+            "The processed_input_data dictionary is missing 'parsed_config' or 'directions_to_study'.")
 
     # 2. Get cleaned lines from file
     linesWithCommentsRemoved = removeCommentsAndEmptyLines(BZ_path_file_name)
@@ -177,64 +178,44 @@ def read_BZ_path_conf(BZ_path_file_name: str, processed_input_data):
 
             # Initialize 3D coords with zeros
             final_coords = [0.0, 0.0, 0.0]
-            parsed_values = []
 
-            # Parse based on dimension
-            if dim == 1:
-                coord_match = re.match(fractional_coord_1d_pattern, value_str)
-                if coord_match:
-                    parsed_values = [float(coord_match.group(1))]
-                else:
-                    raise ValueError(
-                        f"Dimension mismatch: System is 1D, but value '{value_str}' for key '{key_label}' is not a valid 1D coordinate.")
+            # Always parse as 3D coordinate
+            coord_match = re.match(fractional_coord_3d_pattern, value_str)
 
-            elif dim == 2:
-                coord_match = re.match(fractional_coord_2d_pattern, value_str)
-                if coord_match:
-                    parsed_values = [float(coord_match.group(1)), float(coord_match.group(2))]
-                else:
-                    raise ValueError(
-                        f"Dimension mismatch: System is 2D, but value '{value_str}' for key '{key_label}' is not a valid 2D coordinate.")
+            if coord_match:
+                # Extract the 3 raw values from the file: [val_x, val_y, val_z]
+                raw_values = [
+                    float(coord_match.group(1)),
+                    float(coord_match.group(2)),
+                    float(coord_match.group(3))
+                ]
 
-            elif dim == 3:
-                coord_match = re.match(fractional_coord_3d_pattern, value_str)
-                if coord_match:
-                    parsed_values = [float(coord_match.group(1)), float(coord_match.group(2)),
-                                     float(coord_match.group(3))]
-                else:
-                    raise ValueError(
-                        f"Dimension mismatch: System is 3D, but value '{value_str}' for key '{key_label}' is not a valid 3D coordinate.")
+                # Map raw values to final_coords based on directions_to_study
+                # If 'x' is in directions, we take raw_values[0] and put it in final_coords[0]
+                # If 'y' is in directions, we take raw_values[1] and put it in final_coords[1]
+                # If 'z' is in directions, we take raw_values[2] and put it in final_coords[2]
+
+                if 'x' in directions:
+                    final_coords[0] = raw_values[0]
+
+                if 'y' in directions:
+                    final_coords[1] = raw_values[1]
+
+                if 'z' in directions:
+                    final_coords[2] = raw_values[2]
+
+                # If a direction is NOT in directions_to_study, final_coords remains 0.0 for that index.
+
+                parsed_k_points.append({
+                    "label": key_label,
+                    "coords": final_coords
+                })
 
             else:
                 raise ValueError(
-                    f"Unsupported dimension found in processed input: {dim}. Only 1, 2, or 3 are supported.")
-
-            # Map parsed values to 3D coords based on directions_to_study
-            # Example: if dim=2 and directions=['x', 'z'], parsed_values=[0.5, 0.5]
-            # We want final_coords = [0.5, 0.0, 0.5]
-
-            # Create a map of direction char to index: x->0, y->1, z->2
-            dir_map = {'x': 0, 'y': 1, 'z': 2}
-
-            # Ensure we have enough directions for the parsed values
-            if len(directions) < len(parsed_values):
-                # Fallback logic if directions are missing or inconsistent with dim
-                # Just fill sequentially
-                for i, val in enumerate(parsed_values):
-                    final_coords[i] = val
-            else:
-                # Map strictly based on directions_to_study
-                for i, val in enumerate(parsed_values):
-                    dir_char = directions[i]  # e.g. 'x' or 'z'
-                    if dir_char in dir_map:
-                        idx = dir_map[dir_char]
-                        final_coords[idx] = val
-
-            # If successful, append to results
-            parsed_k_points.append({
-                "label": key_label,
-                "coords": final_coords
-            })
+                    f"Format error: Value '{value_str}' for key '{key_label}' is not a valid 3D coordinate (x, y, z). "
+                    "All entries in BZ_path must be 3D."
+                )
 
         else:
             # Line doesn't match key=value format
