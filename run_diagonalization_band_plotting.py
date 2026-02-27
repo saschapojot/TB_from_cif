@@ -12,12 +12,15 @@ from plot_energy_band.block_diagonalization import *
 argErrCode = 20
 if (len(sys.argv) != 2):
     print("wrong number of arguments")
-    print("example: python preprocessing.py /path/to/mc.conf")
+    print("example: python run_diagonalization_band_plotting.py /path/to/mc.conf")
     exit(argErrCode)
 
 confFileName = str(sys.argv[1])
 num_processes=12
 interpolate_point_num=25
 verbose=True
+out_pickle_file_name=subroutine_eigen_problem_for_energy_band_plot(confFileName,
+                                                                   num_processes,
+                                                                   interpolate_point_num,verbose)
 
-all_coords, all_distances, high_symmetry_indices, high_symmetry_labels,quantum_numbers_k,processed_input_data=subroutine_get_interpolated_points_in_BZ_and_quantum_number_k(confFileName)
+print(f"out_pickle_file_name={out_pickle_file_name}")

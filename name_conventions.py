@@ -74,3 +74,6 @@ H_pkl_file_name="hamiltonian_data.pkl"
 hopping_parameters_template_file_name="hopping_parameters.txt"
 
 BZ_path_file_name="BZ_path.conf"
+
+
+plotting_band_data_pkl_file_name="plotting_band_data.pkl"
