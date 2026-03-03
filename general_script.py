@@ -430,32 +430,28 @@ def compute_dist(center_atom, unit_cell_atoms, directions_to_study, search_dim, 
 
     # 1. Determine search ranges based on directions_to_study
     # Default is to only look at the [0,0,0] cell (range of length 1 centered at 0)
-    n0_range = range(0, 1)
-    n1_range = range(0, 1)
-    n2_range = range(0, 1)
+    # n0_range = range(0, 1)
+    # n1_range = range(0, 1)
+    # n2_range = range(0, 1)
 
     # Define the full search span
     full_span = range(-search_range, search_range + 1)
 
     # Map 'x', 'y', 'z' to lattice indices n0, n1, n2
-    active_dims = 0
-    if 'x' in directions_to_study:
-        n0_range = full_span
-        active_dims += 1
-    if 'y' in directions_to_study:
-        n1_range = full_span
-        active_dims += 1
-    if 'z' in directions_to_study:
-        n2_range = full_span
-        active_dims += 1
-
-    # 2. Validation check: Strict Error Raising
-    if active_dims != search_dim:
-        raise ValueError(
-            f"Dimension mismatch in compute_dist: search_dim is {search_dim}, "
-            f"but found {active_dims} active directions in {directions_to_study}. "
-            f"Please ensure 'directions_to_study' contains the correct axes (x, y, z)."
-        )
+    # active_dims = 0
+    # if 'x' in directions_to_study:
+    #     n0_range = full_span
+    #     active_dims += 1
+    # if 'y' in directions_to_study:
+    #     n1_range = full_span
+    #     active_dims += 1
+    # if 'z' in directions_to_study:
+    #     n2_range = full_span
+    #     active_dims += 1
+    n0_range = full_span
+    n1_range = full_span
+    n2_range = full_span
+   
 
     # 3. Search through neighboring cells
     for n0 in n0_range:
