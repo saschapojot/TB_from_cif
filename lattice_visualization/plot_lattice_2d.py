@@ -210,13 +210,17 @@ def draw_arrows_and_circles(root_vertex, ax, radius, a0, a1, a2, tolerance=1e-5)
         hop = node.hopping
         start_x, start_y, start_z = get_real_coords(hop.from_atom, a0, a1, a2)
         end_x, end_y, end_z = get_real_coords(hop.to_atom, a0, a1, a2)
+        # Determine Style: Root is solid, everything else is dotted
+        if node.is_root:
+            arrow_style = 'solid'
+        else:
+            arrow_style = 'dotted'
 
         if getattr(hop, 'line_type', 0) == 1:
             arrow_color = 'blue'
-            arrow_style = 'dotted'
+
         else:
             arrow_color = 'crimson'
-            arrow_style = 'solid' if hop.is_seed==True else 'dotted'
 
         # Check for self-hopping
         if abs(start_x - end_x) < tolerance and abs(start_y - end_y) < tolerance and abs(start_z - end_z) < tolerance:
