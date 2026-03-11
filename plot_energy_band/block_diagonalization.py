@@ -238,7 +238,7 @@ def subroutine_eigen_problem_for_energy_band_plot(confFileName,num_processes=Non
     #and make interpolation between  high-symmetry points
     # 'quantum_numbers_k' contains the actual  k0, k1, k2 coordinates (k0 for 1d; k0, k1 for 2d; k0, k1, k2 for 3d) for every point in the path.
     # 'all_distances' is used for the x-axis when plotting the bands (cumulative distance in k-space).
-    all_coords, all_distances, high_symmetry_indices, high_symmetry_labels, quantum_numbers_k, processed_input_data = subroutine_get_interpolated_points_in_BZ_and_quantum_number_k(
+    all_coords, all_distances, high_symmetry_indices, high_symmetry_labels, quantum_numbers_k, processed_input_data,name = subroutine_get_interpolated_points_in_BZ_and_quantum_number_k(
         confFileName,interpolate_point_num)
 
     # 3. Convert Symbolic Hk to Numerical Function
@@ -261,6 +261,7 @@ def subroutine_eigen_problem_for_energy_band_plot(confFileName,num_processes=Non
     out_pickle_file_name = str(directory / plotting_band_data_pkl_file_name)
     # print(f"all_eigenvalues={all_eigenvalues}")
     data_to_save = {
+        "name":name,
         "all_coords": all_coords,
         "all_distances": all_distances,
         "high_symmetry_indices": high_symmetry_indices,
