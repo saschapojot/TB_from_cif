@@ -346,6 +346,7 @@ search_dim = parsed_config['dim']  # Dimensionality of neighbor search
 preprocessing_data = {
     # Core configuration
     'parsed_config': parsed_config,
+    "name":parsed_config["name"],
     # Space group representations
     'space_group_representations': space_group_representations,
     'directions_to_study':directions_to_study,

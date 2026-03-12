@@ -478,7 +478,9 @@ def subroutine_get_interpolated_points_in_BZ_and_quantum_number_k(confFileName,i
     # 6. Calculate dimensionless quantum numbers (k)
     # Projects the Cartesian BZ points (p) onto the real-space lattice vectors (a_j).
     quantum_numbers_k = obtain_quantum_number_k(all_coords, processed_input_data)
+    name=processed_input_data["name"]
 
-    return all_coords, all_distances, high_symmetry_indices, high_symmetry_labels,quantum_numbers_k,processed_input_data
+
+    return all_coords, all_distances, high_symmetry_indices, high_symmetry_labels,quantum_numbers_k,processed_input_data,name
 
 

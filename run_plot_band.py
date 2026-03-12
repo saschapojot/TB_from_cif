@@ -41,7 +41,7 @@ data_for_plotting=load_plotting_band_data(confFileName)
 if data_for_plotting is None:
     print("Error: Could not load data. Exiting.")
     exit(data_non_existent_err_code)
-
+name=data_for_plotting["name"]
 all_coords=data_for_plotting["all_coords"]
 all_distances=data_for_plotting["all_distances"]
 high_symmetry_indices=data_for_plotting["high_symmetry_indices"]
@@ -80,7 +80,7 @@ plt.xticks(tick_locations, high_symmetry_labels)
 plt.xlim(all_distances[0], all_distances[-1])
 plt.ylim(-0.5,0.5)
 plt.ylabel("Energy")
-plt.title("Electronic Band Structure")
+plt.title(f"Electronic Band Structure: {name}")
 plt.grid(alpha=0.3)
 conf_file_path = Path(confFileName)
 base_directory=conf_file_path.parent
