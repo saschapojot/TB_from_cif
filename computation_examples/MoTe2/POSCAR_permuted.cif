@@ -1,0 +1,31 @@
+data_MoTe2
+_audit_creation_method   'Permutation Script'
+_audit_creation_date           '2026-02-10'
+_audit_creation_method         'Materials Studio'
+_symmetry_space_group_name_H-M 'P21/M'
+_symmetry_Int_Tables_number    '11'
+_symmetry_cell_setting         'monoclinic'
+
+_cell_length_a                  3.51860
+_cell_length_b                  6.30230
+_cell_length_c                  15.00580
+_cell_angle_alpha               90.00000
+_cell_angle_beta                90.00000
+_cell_angle_gamma               90.00000
+
+loop_
+_symmetry_equiv_pos_as_xyz
+  x,y,z
+  x+1/2,-y,-z
+  -x,-y,-z
+  -x+1/2,y,z
+
+loop_
+_atom_site_label
+_atom_site_type_symbol
+_atom_site_fract_x
+_atom_site_fract_y
+_atom_site_fract_z
+  Mo1     Mo       0.25    0.17781   0.99281
+  Te1    Te      0.25    0.57392   0.90271
+  Te4    Te      0.75    0.42608   0.09729
