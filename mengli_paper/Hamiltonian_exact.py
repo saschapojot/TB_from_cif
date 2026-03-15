@@ -160,6 +160,44 @@ def H_mat(kx,ky):
     ])
     return mat
 
+def h_tilde(kx,ky):
+    val_h00=H33(kx,ky)
+    val_h11=H33(kx,ky)
+    val_h22=H11(kx,ky)
+    val_h55=H11(kx,ky)
+
+    val_h10=H23(kx,ky)
+    val_h01=H32(kx,ky)
+
+    val_h02=H02(kx,ky)
+    val_h20=H20(kx,ky)
+
+    val_h50=H03(kx,ky)
+    val_h05=H30(kx,ky)
+
+    val_h21=H12(kx,ky)
+    val_h12=H21(kx,ky)
+
+    val_h15=H13(kx,ky)
+    val_h51=H31(kx,ky)
+
+    val_h52=H01(kx,ky)
+    val_h25=H10(kx,ky)
+
+    mat_h_tilde=np.array([
+        [val_h00,val_h01,val_h02,val_h05],
+        [val_h10,val_h11,val_h12,val_h15],
+        [val_h20,val_h21,val_h22,val_h25],
+        [val_h50,val_h51,val_h52,val_h55],
+    ])
+
+    return  mat_h_tilde
+
+
+
+
+
+
 #
 # def is_hermitian(matrix):
 #     return np.allclose(matrix, matrix.conj().T)
@@ -334,7 +372,7 @@ n_row, n_col = quantum_numbers_k.shape
 print(n_row)
 # Initialize a list to store the numerical Hamiltonian matrices
 Hk_matrices_list = []
-
+h_tilde_matrices_list = []
 # 4. Iterate over each k-point (each row in the input)
 for i in range(n_row):
     # Get the specific k-point coordinates for this step
@@ -342,12 +380,15 @@ for i in range(n_row):
     # Pass the components of the k-point as separate arguments to the lambdified function.
     # The * operator unpacks the numpy array into positional arguments (k0, k1, etc.)
     H_k_numerical=H_mat(*k_point)
+    h_tilde_numerical=h_tilde(*k_point)
     # Ensure the output is a numpy array (lambdify sometimes returns lists/scalars depending on backend)
     H_k_numerical = np.array(H_k_numerical, dtype=complex)
+    h_tilde_numerical=np.array(h_tilde_numerical,dtype=complex)
     Hk_matrices_list.append(H_k_numerical)
+    h_tilde_matrices_list.append(h_tilde_numerical)
 
 Hk_matrices_all = np.array(Hk_matrices_list)
-
+h_tilde_matrices_all=np.array(h_tilde_matrices_list)
 # --- Parallel Diagonalization Functions ---
 def diagonalize_chunk(matrix_chunk):
     """
@@ -414,50 +455,72 @@ def diagonalize_all_Hk_matrices(Hk_matrices_all, num_processes=None):
     all_eigenvectors = np.concatenate(eigenvectors_list, axis=0)
     return all_eigenvalues, all_eigenvectors
 
+
+def diagonalize_all_h_tilde_matrices(h_tilde_matrices_all,num_processes=None):
+    if num_processes is None:
+        num_processes = cpu_count()
+    print(f"Parallelism={num_processes}")
+    chunks = np.array_split(h_tilde_matrices_all, num_processes, axis=0)
+    with Pool(processes=num_processes) as pool:
+        # pool.map applies 'diagonalize_chunk' to each item in 'chunks'
+        # results is a list of tuples: [(evals_1, evecs_1), (evals_2, evecs_2), ...]
+        results = pool.map(diagonalize_chunk, chunks)
+    eigenvalues_list, eigenvectors_list = zip(*results)
+    # Concatenate the chunks back into monolithic numpy arrays
+    all_eigenvalues = np.concatenate(eigenvalues_list, axis=0)
+    all_eigenvectors = np.concatenate(eigenvectors_list, axis=0)
+    return all_eigenvalues, all_eigenvectors
+
+
+
 num_processes=12
 t_diag_start = datetime.now()
 all_eigenvalues, all_eigenvectors = diagonalize_all_Hk_matrices(Hk_matrices_all, num_processes)
+all_eigenvalues_h_tilde, all_eigenvectors_h_tilde=diagonalize_all_h_tilde_matrices(h_tilde_matrices_all,num_processes)
 t_diag_end = datetime.now()
 print("diagonalization time: ", t_diag_end-t_diag_start)
 
-# Create a figure
-plt.figure(figsize=(6, 8))
+# Create a figure with two panels
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 12), sharex=True)
+
+# --- Upper Panel: H eigenvalues ---
 num_bands = all_eigenvalues.shape[1]
-for i in range(0,num_bands):
-    # Plot the i-th column (band) against the k-path distance
-    plt.plot(all_distances, all_eigenvalues[:, i], color='blue', linewidth=1.5)
+for i in range(num_bands):
+    ax1.plot(all_distances, all_eigenvalues[:, i], color='blue', linewidth=1.5)
 
-# Add vertical lines for high symmetry points
 for index in high_symmetry_indices:
-    # Map the index to the actual distance value
-    # Check bounds to avoid errors if index is out of range
     if index < len(all_distances):
-        plt.axvline(x=all_distances[index], color='black', linestyle='--', linewidth=0.8)
+        ax1.axvline(x=all_distances[index], color='black', linestyle='--', linewidth=0.8)
 
-
-# Set x-ticks to be the high symmetry points
 valid_indices = [i for i in high_symmetry_indices if i < len(all_distances)]
 tick_locations = [all_distances[i] for i in valid_indices]
 
-plt.xticks(tick_locations, high_symmetry_labels, fontsize=14)
+ax1.set_xticks(tick_locations)
+ax1.set_xticklabels(high_symmetry_labels, fontsize=14)
+ax1.set_xlim(all_distances[0], all_distances[-1])
+ax1.set_ylim(-0.5, 0.5)
+ax1.set_ylabel("Energy", fontsize=22)
+ax1.set_title(f"{name} (H)", fontsize=24)
+ax1.grid(alpha=0.3)
 
+# --- Lower Panel: h_tilde eigenvalues ---
+num_bands_h_tilde = all_eigenvalues_h_tilde.shape[1]
+for i in range(num_bands_h_tilde):
+    ax2.plot(all_distances, all_eigenvalues_h_tilde[:, i], color='red', linewidth=1.5)
 
-# Limit x-axis to the range of the path
-plt.xlim(all_distances[0], all_distances[-1])
-plt.ylim(-0.5,0.5)
-# plt.yticks(fontsize=20)
+for index in high_symmetry_indices:
+    if index < len(all_distances):
+        ax2.axvline(x=all_distances[index], color='black', linestyle='--', linewidth=0.8)
 
-# Y-axis label size
-plt.ylabel("Energy", fontsize=22)
-# plt.yticks(ticks=plt.yticks()[0], labels=[])
+ax2.set_xticks(tick_locations)
+ax2.set_xticklabels(high_symmetry_labels, fontsize=14)
+ax2.set_xlim(all_distances[0], all_distances[-1])
+ax2.set_ylim(-0.5, 0.5)
+ax2.set_ylabel("Energy", fontsize=22)
+ax2.set_title(f"{name} (h_tilde)", fontsize=24)
+ax2.grid(alpha=0.3)
 
-
-# Title size
-plt.title(f"{name}", fontsize=24)
-plt.grid(alpha=0.3)
 plt.tight_layout()
-
-
-out_pic_file_name=str(f"{name}_band.png")
+out_pic_file_name = str(f"{name}_band.png")
 plt.savefig(out_pic_file_name, bbox_inches='tight')
 plt.close()
