@@ -17,7 +17,7 @@ if (len(sys.argv) != 2):
 
 confFileName = str(sys.argv[1])
 num_processes=12
-interpolate_point_num=100
+interpolate_point_num=200
 verbose=True
 out_pickle_file_name=subroutine_eigen_problem_for_energy_band_plot(confFileName,
                                                                    num_processes,
