@@ -1,0 +1,60 @@
+# Hopping Parameter Input File
+# Generated: 2026-03-19 14:45:23
+#
+# Instructions:
+# 1. Fill in numerical values after the '=' symbol
+# 2. Use floating point numbers (e.g., 1.0, -2.5, 0.0) or complex numbers
+# 3. Lines starting with '#' are comments and will be ignored
+# 4. Do not modify the parameter names (left side of '=')
+#
+#   - Independent T parameters (complex): 5
+#   - Independent real parts (re_T): 23
+#   - Independent imaginary parts (im_T): 2
+#
+# ======================================================================
+
+# ======================================================================
+# Independent complex Hopping Parameters (T)
+# ======================================================================
+
+T^{5}_{3dxy,3dxy}=
+T^{5}_{3dxz,3dxz}=
+T^{5}_{3dxz,3dyz}=
+T^{5}_{3dyz,3dxz}=
+T^{5}_{3dyz,3dyz}=
+
+# ======================================================================
+# Independent real Parts of Hopping Parameters (re_T)
+# ======================================================================
+
+re_T^{0}_{3dxy,3dxy}=-0.71015906
+re_T^{0}_{3dxz,3dxz}=-0.03046053
+re_T^{0}_{3dyz,3dyz}=
+re_T^{1}_{3dxy,3dxy}=
+re_T^{1}_{3dxz,3dyz}=
+re_T^{1}_{3dyz,3dxz}=
+re_T^{1}_{3dyz,3dyz}=
+re_T^{2}_{3dxy,3dxy}=-0.20442841
+re_T^{2}_{3dxz,3dxz}=-0.2971818
+re_T^{2}_{3dyz,3dyz}=
+re_T^{3}_{3dxy,3dxy}=-0.09841807
+re_T^{3}_{3dxz,3dxz}=0.09292557
+re_T^{3}_{3dyz,3dyz}=
+re_T^{4}_{3dxy,3dxy}=-0.13850689
+re_T^{4}_{3dxz,3dxz}=0.04011348
+re_T^{4}_{3dyz,3dxz}=
+re_T^{4}_{3dyz,3dyz}=
+re_T^{6}_{3dxy,3dxy}=0.03057077
+re_T^{6}_{3dxz,3dxz}=0.00453865
+re_T^{6}_{3dyz,3dyz}=
+re_T^{7}_{3dxy,3dxy}=0.00361299
+re_T^{7}_{3dxz,3dxz}=-0.00244148
+re_T^{7}_{3dyz,3dyz}=
+
+# ======================================================================
+# Independent imaginary Parts of Hopping Parameters (im_T)
+# ======================================================================
+
+im_T^{1}_{3dyz,3dyz}=
+im_T^{4}_{3dyz,3dxz}=
+
