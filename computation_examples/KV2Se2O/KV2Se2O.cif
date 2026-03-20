@@ -1,4 +1,4 @@
-data_V2Te2O
+data_KV2Se2O
 _audit_creation_date              2026-03-17
 _audit_creation_method            'Materials Studio'
 _symmetry_space_group_name_H-M    'P4/MMM'
@@ -39,5 +39,5 @@ _atom_site_adp_type
 _atom_site_occupancy
 O1     O     0.00000   0.00000   0.00000   0.00000  Uiso   1.00
 V1     V     0.50000   0.00000   0.00000   0.00000  Uiso   1.00
-Te1    Te    0.50000   0.50000   0.15000   0.00000  Uiso   1.00
-
+Se1    Se    0.50000   0.50000   0.15000   0.00000  Uiso   1.00
+K1    K    0.00000   0.00000   0.50000   0.00000  Uiso   1.00
