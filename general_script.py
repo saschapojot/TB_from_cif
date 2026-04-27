@@ -506,7 +506,7 @@ def get_rotation_translation(space_group_cart, operation_idx):
 
     Args:
         space_group_cart: List of space group matrices in Cartesian coordinates
-                                 using Bilbao origin (shape: num_ops × 3 × 4)
+                                 using cif origin (shape: num_ops × 3 × 4)
         operation_idx: Index of the space group operation
 
     Returns:
@@ -572,7 +572,7 @@ def is_lattice_vector(vector, lattice_basis, tolerance=1e-3):
     Args:
         vector: 3D vector to check (Cartesian coordinates)
         lattice_basis: Primitive lattice basis vectors (3×3 array, each row is a basis vector)
-                      expressed in Cartesian coordinates using Bilbao origin
+                      expressed in Cartesian coordinates using cif origin
         tolerance: Numerical tolerance for checking if coefficients are integers (default: 1e-3)
 
     Returns:
@@ -617,9 +617,9 @@ def check_center_invariant(center_atom, operation_idx, space_group_cart,
         center_atom: atomIndex object representing the center atom
         operation_idx: Index of the space group operation to check
         space_group_cart: List of space group matrices in Cartesian coordinates
-                                 using Bilbao origin (shape: num_ops × 3 × 4)
+                                 using cif origin (shape: num_ops × 3 × 4)
         lattice_basis: Primitive lattice basis vectors (3×3 array, each row is a basis vector)
-                      expressed in Cartesian coordinates using Bilbao origin
+                      expressed in Cartesian coordinates using cif origin
         tolerance: Numerical tolerance for comparison (default: 1e-3)
         verbose: Whether to print debug information (default: False)
 
@@ -631,12 +631,10 @@ def check_center_invariant(center_atom, operation_idx, space_group_cart,
     # Extract the rotation matrix R and translation vector t from the space group operation
     R, t = get_rotation_translation(space_group_cart, operation_idx)
 
-    # Get center atom's Cartesian position (using Bilbao origin)
+    # Get center atom's Cartesian position (using cif origin)
     r_center = center_atom.cart_coord
 
-    # Compute the position after applying only R and t (without lattice translation yet)
-    # This is: R @ r + t
-    # r_transformed = R @ r_center + t
+
 
     # Compute the left-hand side of the invariance equation:
     # (R - I) @ r + t
@@ -676,13 +674,13 @@ def generate_wyckoff_orbit(wyckoff_position, space_group_cart, lattice_basis,
                          Example: {'position_name': 'C', 'atom_type': 'C',
                                   'fractional_coordinates': [0.33333333, 0.66666666, 0.0]}
     :param space_group_cart: List of space group matrices in Cartesian coordinates
-                                using Bilbao origin (shape: num_ops × 3 × 4)
+                                using cif origin (shape: num_ops × 3 × 4)
     :param lattice_basis:  Primitive lattice basis vectors (3×3 array, each row is a basis vector)
-                      expressed in Cartesian coordinates using Bilbao origin
+                      expressed in Cartesian coordinates using cif origin
     :param tolerance: Numerical tolerance for identifying duplicate positions (default: 1e-3)
     :return: list of dicts: Each dict contains:
             - 'fractional_coordinates': [f0, f1, f2] in range [0, 1)
-            - 'cartesian_coordinates': [x, y, z] in Cartesian coords (Bilbao origin)
+            - 'cartesian_coordinates': [x, y, z] in Cartesian coords (cif origin)
             - 'operation_idx': which space group operation generated this position
             - 'position_name': inherited from input Wyckoff position
 
@@ -695,7 +693,7 @@ def generate_wyckoff_orbit(wyckoff_position, space_group_cart, lattice_basis,
     lattice_basis = np.array(lattice_basis)#rows are basis vectors
     lattice_matrix = np.column_stack(lattice_basis)  # Columns are basis vectors
     lattice_matrix_inv = np.linalg.inv(lattice_matrix)
-    # Convert input fractional coordinates to Cartesian using Bilbao origin
+    # Convert input fractional coordinates to Cartesian using cif origin
     r_cart_input = frac_to_cartesian([0, 0, 0], r_frac_input, lattice_basis, origin_cart)
 
     # Store unique positions
@@ -1014,7 +1012,7 @@ def print_all_trees(roots_list, show_details=True, max_trees=None, max_depth=Non
 # ==============================================================================
 
 
-def bilbao_plus_translation(R,t,lattice_basis,n_vec,atom_cart):
+def cif_plus_translation(R,t,lattice_basis,n_vec,atom_cart):
     """
     Apply space group operation with lattice translation to an atom position.
 
@@ -1023,7 +1021,7 @@ def bilbao_plus_translation(R,t,lattice_basis,n_vec,atom_cart):
 
     where:
         - R @ r is the rotation of the atom position
-        - t is the fractional translation (origin shift) from the Bilbao space group operation
+        - t is the fractional translation (origin shift) from the cif space group operation
         - n₀·a₀ + n₁·a₁ + n₂·a₂ is a lattice vector translation
 
     This is the complete symmetry operation that includes the additional lattice
@@ -1049,7 +1047,7 @@ def bilbao_plus_translation(R,t,lattice_basis,n_vec,atom_cart):
 
     # Apply the complete symmetry transformation:
     # 1. R @ atom_cart: Apply rotation to the atom position
-    # 2. + t: Add the Bilbao translation from the space group operation
+    # 2. + t: Add the cif translation from the space group operation
     # 3. + n0*a0 + n1*a1 + n2*a2: Add the lattice vector translation
     #    This is the additional shift needed to preserve center atom invariance
     transformed_cart=R@atom_cart+t+n0*a0+n1*a1+n2*a2
@@ -1065,7 +1063,7 @@ def get_next_for_center(center_atom, seed_atom, center_seed_distance, space_grou
      1. Check if the center atom is invariant under the space group operation
        (usually with lattice translation). This determines the lattice shift n_vec.
      2. If invariant, apply the SAME operation (with the SAME n_vec) to the seed atom
-        to generate an atom's Cartesian coordinate. This atom may be symmetry-equivalent
+        to generate an atom's Cartesian coordinate. This atom should be symmetry-equivalent
         to the seed atom.
 
      3. Verify that the transformed seed maintains the same distance from center.
@@ -1080,7 +1078,7 @@ def get_next_for_center(center_atom, seed_atom, center_seed_distance, space_grou
          center_seed_distance: Pre-computed distance from center to seed atom
                                 (avoids redundant computation across operations)
         space_group_cart: List of space group matrices in Cartesian coordinates
-                                using Bilbao origin (shape: num_ops × 3 × 4)
+                                using cif origin (shape: num_ops × 3 × 4)
         operation_idx: Index of the space group operation to apply
         parsed_config: Configuration dictionary containing lattice_basis
         tolerance: Numerical tolerance for invariance and distance checks (default: 1e-3)
@@ -1146,7 +1144,7 @@ def get_next_for_center(center_atom, seed_atom, center_seed_distance, space_grou
         seed_cart_coord = seed_atom.cart_coord  # Original seed position
         # Apply the full symmetry transformation: R @ r + b + lattice_shift
         # This generates a Cartesian coordinate that may represent a symmetry-equivalent atom
-        next_cart_coord = bilbao_plus_translation(R, b, lattice_basis, n_vec, seed_cart_coord)
+        next_cart_coord = cif_plus_translation(R, b, lattice_basis, n_vec, seed_cart_coord)
         # ==============================================================================
         # STEP 3: Verify the transformation preserves hopping distance (isometry check)
         # ==============================================================================
@@ -1451,7 +1449,7 @@ def equivalent_class_to_hoppings(one_equivalent_class, center_atom,
         center_atom: atomIndex object for the center atom (hopping destination)
                     All hoppings in this equivalence class have the same center atom
          space_group_cart: List of space group matrices in Cartesian coordinates
-                                using Bilbao origin (shape: num_ops × 3 × 4)
+                                using cif origin (shape: num_ops × 3 × 4)
                                 Used to extract rotation R and translation t for each operation
 
         identity_idx: Index of the identity operation in space_group_cart
@@ -1492,8 +1490,8 @@ def equivalent_class_to_hoppings(one_equivalent_class, center_atom,
             to_atom=deepcopy(center_atom),  # Destination: center atom (deep copied)
             from_atom=deepcopy(neighbor_atom),  # Source: neighbor atom (deep copied)
             operation_idx=operation_idx,  # Space group operation index (immutable int)
-            rotation_matrix=deepcopy(R),  # 3×3 rotation matrix from Bilbao (deep copied)
-            translation_vector=deepcopy(t),  # 3D translation vector from Bilbao (deep copied)
+            rotation_matrix=deepcopy(R),  # 3×3 rotation matrix from cif (deep copied)
+            translation_vector=deepcopy(t),  # 3D translation vector from cif (deep copied)
             n_vec=deepcopy(n_vec),  # Additional lattice shift [n₀, n₁, n₂] (deep copied)
             is_seed=is_seed  # Flag: True for seed, False for derived (immutable bool)
         )
@@ -1633,7 +1631,7 @@ def apply_full_transformation_and_check_position(atom1,atom2,R,t,lattice_basis,n
     atom1_pos=atom1.cart_coord
     atom2_pos=atom2.cart_coord
 
-    atom1_transformed_pos=bilbao_plus_translation(R,t,lattice_basis,n_vec,atom1_pos)
+    atom1_transformed_pos=cif_plus_translation(R,t,lattice_basis,n_vec,atom1_pos)
     diff=np.linalg.norm(atom1_transformed_pos-atom2_pos,ord=2)
     if diff<tolerance:
         return True
@@ -1812,9 +1810,9 @@ def check_hopping_hermitian(hopping1, hopping2, space_group_cart,
         hopping1: First hopping object (reference hopping)
         hopping2: Second hopping object (candidate Hermitian conjugate)
         space_group_cart: List of space group matrices in Cartesian coordinates
-                                using Bilbao origin (shape: num_ops × 3 × 4)
+                                using cif origin (shape: num_ops × 3 × 4)
         lattice_basis: Primitive lattice basis vectors (3×3 array, each row is a basis vector)
-                      expressed in Cartesian coordinates using Bilbao origin
+                      expressed in Cartesian coordinates using cif origin
         tolerance: Numerical tolerance for comparison (default: 1e-3)
         verbose: Whether to print debug information (default: False)
 
@@ -2059,7 +2057,7 @@ def convert_equivalence_classes_to_hoppings(equivalence_classes, center_atom,
                             (neighbor_atom, operation_idx, n_vec)
         center_atom:  atomIndex object for the center atom (hopping destination)
         space_group_cart: List of space group matrices in Cartesian coordinates
-                                using Bilbao origin (shape: num_ops × 3 × 4)
+                                using cif origin (shape: num_ops × 3 × 4)
         identity_idx:  Index of the identity operation
         verbose: Whether to print detailed conversion information (default: False)
 
@@ -2234,7 +2232,7 @@ def generate_all_trees_for_unit_cell(unit_cell_atoms,all_neighbors,space_group_c
                               Each value is a list of atomIndex objects within cutoff radius.
 
 
-        space_group_cart (list of np arrays): Space group operations in  Cartesian coordinates using Bilbao origin.
+        space_group_cart (list of np arrays): Space group operations in  Cartesian coordinates using cif origin.
                                                      Each operation is a 3×4 matrix [R|t] where:
                                                      - R (3×3): Rotation/reflection matrix
                                                      - t (3×1): Translation vector
@@ -2435,11 +2433,11 @@ def tree_grafting_hermitian(roots_all,space_group_cart,lattice_basis,type_hermit
                           Each root represents an independent constraint tree built from
                           space group symmetry around a center atom.
         space_group_cart (list of np.ndarray): Space group operations in Cartesian
-                                                      coordinates using Bilbao origin.
+                                                      coordinates using cif origin.
                                                       Shape: num_ops × 3 × 4 matrices [R|t]
         lattice_basis (np.ndarray): Primitive lattice basis vectors (3×3 array).
                                     Each row is a basis vector in Cartesian coordinates
-                                    using Bilbao origin.
+                                    using cif origin.
         type_hermitian (str): String identifier for Hermitian constraint type.
                               value: "hermitian".
                               This label is assigned to grafted hermitian roots.
