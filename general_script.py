@@ -1546,7 +1546,7 @@ def one_equivalent_hopping_class_to_root(one_equivalent_hopping_class, identity_
                      |
          +-----------+-----------+-----------+
          |           |           |           |
-      Child 1     Child 2     Child 3     Child 4
+      Child 0     Child 1     Child 2     Child 3
      (linear)    (linear)    (linear)    (linear)
 
     Each child is derived from root by a symmetry operation.
@@ -1627,7 +1627,7 @@ def atom_equal(atom1, atom2,tolerence=1e-3):
 
 
 def apply_full_transformation_and_check_position(atom1,atom2,R,t,lattice_basis,n_vec,tolerance=1e-3):
-    #checks if full transformation applied to atoms goes to atom2
+    #checks if full transformation applied to atoms1 goes to atom2
     atom1_pos=atom1.cart_coord
     atom2_pos=atom2.cart_coord
 
@@ -1666,7 +1666,7 @@ def check_hopping_linear(hopping1,hopping2, space_group_cart,
     If dist1 = dist2 = 0 (hopping is from an atom to itself), the hopping vector is 0.
     The condition simplifies to checking if the operation maps atom1 to atom2:
         R @ pos_atom1 + t + n_vec·basis = pos_atom2
-
+Second hopping object (candidate symmetry equivalent)
     Args:
         hopping1: First hopping object (reference hopping)
         hopping2: Second hopping object (candidate symmetry equivalent)
